@@ -1,1 +1,8 @@
 __pycache__
+*.png
+*.pdf
+*.jpg
+*.pth
+*.pt
+Data
+runs
