@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 from numpy.random import seed
 import control
 from pendulum import PendulumEnv
+import time
 
 seed(42)
 
@@ -102,13 +103,13 @@ class EnergyShapingController:
 
 
 if __name__ == "__main__": 
-    N_EPISODES = 10 # 5000 for data generation, 20 visualization
+    N_EPISODES = 5000 # 5000 for data generation, 20 visualization
     assert N_EPISODES >= 10 # Somehow, because of plotting, a smaller version crashes
     ANGLE_SWITCH_THRESHOLD_DEG = 10 # deg
     EPISODE_DONE_ANGLE_THRESHOLD_DEG = 0.1 # deg
     GRAVITY = 10.0
     DT = 0.01
-    
+
     # env = gym.make("Pendulum-v1", g=GRAVITY, render_mode = 'human') # , if want to see video
     env = PendulumEnv(dt=DT, g=GRAVITY)
     pendulum_params = {"mass": env.m,
@@ -121,17 +122,19 @@ if __name__ == "__main__":
     # nonlinear_controller = NonlinearController(**pendulum_params)
     lqr_controller = LQRController(**pendulum_params)
 
-    col_names = ['episode', 'actions', 'states', 'prev_state', 'prev_action', 'ctrl_type']
-    df = pd.DataFrame(columns=col_names)
-
+    duration_episodes = []
+    steps_per_episodes = []
+    list_of_all_the_data = []
     for i in range(N_EPISODES):
+        print(f'Episode {i}')
         obs, _ = env.reset(options={'x_init': 1.0, 'y_init': 8.0})
         done = False
         state = obs.squeeze().copy() 
         prev_state = state.copy()
         upright_angle_buffer = []
         ctrl_type = None
-        state_list = []
+        time_start_episode = time.time()
+        counter = 0
         while not done:
             angle = np.arctan2(obs[1], obs[0])
             pos_vel = np.array([angle, obs[2]]).squeeze()
@@ -144,24 +147,30 @@ if __name__ == "__main__":
                 ctrl_type = 'EnergyShaping'
 
             prev_action = action.copy()
-            obs ,_ ,_ ,_, _ = env.step(action.reshape(1,-1))
+            obs ,_ ,_ ,_, _ = env.step(action.reshape(1, -1))
 
             if abs(angle) < np.deg2rad(EPISODE_DONE_ANGLE_THRESHOLD_DEG):
                 upright_angle_buffer.append(angle)
-            if len(upright_angle_buffer) > 40: # or len(state_list) > 500:
+            if len(upright_angle_buffer) > 40:
                 done = True
 
-            df2 = pd.DataFrame([[i, action.squeeze(),
-                                 state.tolist(),
-                                 prev_state.tolist(),
-                                 prev_action.squeeze(),
-                                 ctrl_type]],
-                                 columns=col_names)
-
-            df = pd.concat([df, df2], ignore_index=True)
+            list_of_all_the_data.append([i,
+                                         action.squeeze(),
+                                         state.tolist(),
+                                         prev_state.tolist(),
+                                         prev_action.squeeze(),
+                                         ctrl_type])
             state = obs.squeeze().copy() # use .copy() for arrays because of the shared memory issues
             prev_state = state.copy()
-            state_list.append(state)
+            counter += 1
+
+        time_end_episode = time.time()
+        duration_episodes.append(time_end_episode - time_start_episode)
+
+    print('It took total of', sum(duration_episodes), 'seconds to run', N_EPISODES, 'episodes')
+
+    col_names = ['episode', 'actions', 'states', 'prev_state', 'prev_action', 'ctrl_type']
+    df = pd.DataFrame(list_of_all_the_data, columns=col_names)
 
     env.close()
 
