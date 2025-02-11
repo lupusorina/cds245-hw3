@@ -87,6 +87,10 @@ class PendulumEnv():
         self.state = np.random.uniform(low=low, high=high)
         self.last_u = None
 
+        if options is not None:
+            if options.get("theta0") is not None and options.get("theta_dot0") is not None:
+                self.state = np.array([options["theta0"], options["theta_dot0"]])
+
         if self.render_mode == "human":
             self.render()
         return self._get_obs(), {}
@@ -159,7 +163,7 @@ class PendulumEnv():
             self.surf, rod_end[0], rod_end[1], int(rod_width / 2), (204, 77, 77)
         )
 
-        fname = path.join(path.dirname(__file__), "clockwise.png")
+        fname = path.join(path.dirname(__file__), "figures/clockwise.png")
         img = pygame.image.load(fname)
         if self.last_u is not None:
             scale_img = pygame.transform.smoothscale(
