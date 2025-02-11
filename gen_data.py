@@ -31,7 +31,10 @@ class NonlinearController:
 
 class LQRController:
     def __init__(self,
-                 mass, rod_length, gravity, dt,
+                 mass: float,
+                 rod_length: float,
+                 gravity: float,
+                 dt: float,
                  action_limits=(-2.0, 2.0),
                  Q = np.diag([20, 0.5]),
                  R = np.array([[0.2]])):
@@ -110,8 +113,7 @@ if __name__ == "__main__":
     GRAVITY = 10.0
     DT = 0.01
 
-    # env = gym.make("Pendulum-v1", g=GRAVITY, render_mode = 'human') # , if want to see video
-    env = PendulumEnv(dt=DT, g=GRAVITY)
+    env = PendulumEnv(dt=DT, g=GRAVITY) # render_mode = 'human'
     pendulum_params = {"mass": env.m,
                        "rod_length": env.l,
                        "gravity": GRAVITY,
@@ -205,11 +207,11 @@ if __name__ == "__main__":
             angular_vels = episode_data['states'].apply(lambda x: x[1])
             actions = episode_data['actions']
             control_type = episode_data['ctrl_type']
-            
+
             ax[0].plot(angles, label=f'Episode {i}')
             ax[1].plot(angular_vels, label=f'Episode {i}')
             ax[2].plot(actions, label=f'Episode {i}')
-            
+
         for i in range(3):
             ax[i].grid()
 
