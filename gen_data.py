@@ -4,11 +4,9 @@ import ast
 import math
 import numpy as np
 import pandas as pd
-import gymnasium as gym
 import matplotlib.pyplot as plt
 from numpy.random import seed
 import control
-from matplotlib.collections import LineCollection
 from pendulum import PendulumEnv
 
 seed(42)
