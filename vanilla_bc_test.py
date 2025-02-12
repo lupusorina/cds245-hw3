@@ -17,7 +17,7 @@ pendulum_params = {"mass": env.m,
 
 # Load model
 model = BCModel()
-state_dict = torch.load('Models/bc_model_pb1.pth', weights_only=True)
+state_dict = torch.load('Models/bc_model_pb1a.pth', weights_only=True)
 model.load_state_dict(state_dict)
 
 # Set to evaluation mode
