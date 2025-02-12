@@ -182,39 +182,38 @@ if __name__ == "__main__":
     df.to_csv(f'{DATA_FOLDER}/data_{N_EPISODES}.csv', index=False)
 
     # Plot state.
+    PLOT = True
     print('Plotting...')
+    if PLOT == False:
+        exit()
+
+    NB_EPISODES_TO_PLOT = 100
+
     data = pd.read_csv(f'{DATA_FOLDER}/data_{N_EPISODES}.csv')
     data['states'] = data['states'].apply(lambda x: ast.literal_eval(x))
     data['angle_state'] = data['states'].apply(lambda x: np.arctan2(x[1], x[0]))
     N_EPISODES = data['episode'].nunique()
 
-    n_chunks = 10 # chunks per plot.
-    chunk_size = math.ceil(N_EPISODES / n_chunks)
-
-    for chunk_id in range(n_chunks):
-        start_ep = chunk_id * chunk_size
-        end_ep = min((chunk_id + 1) * chunk_size, N_EPISODES)
-
+    for idx_episode in range(min(N_EPISODES, NB_EPISODES_TO_PLOT)):
         fig, ax = plt.subplots(3, 1, sharex=True, figsize=(8, 8))
-        for i in range(start_ep, end_ep):
-            episode_data = data[data['episode'] == i]
+        print(f'Episode {idx_episode}')
+        episode_data = data[data['episode'] == idx_episode]
 
-            angles = episode_data['angle_state']
-            angular_vels = episode_data['states'].apply(lambda x: x[1])
-            actions = episode_data['actions']
-            control_type = episode_data['ctrl_type']
+        angles = episode_data['angle_state']
+        angular_vels = episode_data['states'].apply(lambda x: x[2])
+        actions = episode_data['actions']
 
-            ax[0].plot(angles, label=f'Episode {i}')
-            ax[1].plot(angular_vels, label=f'Episode {i}')
-            ax[2].plot(actions, label=f'Episode {i}')
+        ax[0].plot(angles, label=f'Episode {idx_episode}')
+        ax[1].plot(angular_vels, label=f'Episode {idx_episode}')
+        ax[2].plot(actions, label=f'Episode {idx_episode}')
 
         for i in range(3):
             ax[i].grid()
+            ax[i].legend(loc='upper right')
 
-        ax[0].set_title(f"Performance for Episodes {start_ep} to {end_ep-1}")
+        ax[0].set_title(f"Performance for Episode {idx_episode}")
         ax[0].set_ylabel("Angle [rad]")
         ax[1].set_ylabel("Angular Velocity [rad/s]")
         ax[2].set_ylabel("Torque [Nm]")
-        # plt.savefig(f'Data/Plots/episode_{start_ep}_{end_ep-1}.png')
-        plt.savefig(f'{PLOTS_FOLDER}/episode_{start_ep}_{end_ep-1}.png')
-        # plt.show()
+        plt.savefig(f'{PLOTS_FOLDER}/episode_{idx_episode}.png')
+        plt.close()
