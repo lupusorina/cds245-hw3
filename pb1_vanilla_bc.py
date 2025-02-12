@@ -35,7 +35,7 @@ def main():
 
     data = pd.read_csv(os.path.join(FOLDER_DATA, NAME_FILE + '.csv'))
     
-    SAVE_DATA_AS_NP = False
+    SAVE_DATA_AS_NP = True
     if SAVE_DATA_AS_NP == True:
         actions = data['actions'].values
         states_list = []
@@ -129,8 +129,7 @@ def main():
 
     if not os.path.exists(FOLDER_SAVE_MODEL):
         os.makedirs(FOLDER_SAVE_MODEL)    
-    torch.save(model.state_dict(), os.path.join(FOLDER_SAVE_MODEL, 'bc_model_pb1.pth'))
-
+    torch.save(model.state_dict(), os.path.join(FOLDER_SAVE_MODEL, 'bc_model_pb1a.pth'))
 
 if __name__ == '__main__':
     main()
