@@ -51,7 +51,6 @@ def main():
         actions_np = np.load(os.path.join(FOLDER_DATA, 'actions_np_' + NAME_FILE + '.npy'))
         print('Data loaded from numpy arrays')
 
-
     states_tensor = torch.tensor(states_np, dtype=torch.float32)
     actions_tensor = torch.tensor(actions_np.reshape(-1, 1), dtype=torch.float32)
 
@@ -62,16 +61,17 @@ def main():
     validation_size = int(total_samples * 0.15)
     test_size = total_samples - train_size - validation_size  # Ensures all data is used
 
-    train_dataset, validation_dataset, test_dataset = random_split(dataset, [train_size, validation_size, test_size])
-    train_loader = DataLoader(train_dataset, batch_size=256, shuffle=True)  # Shuffle for training
-    validation_loader = DataLoader(validation_dataset, batch_size=256, shuffle=False)  # Typically no need to shuffle validation/test
-    test_loader = DataLoader(test_dataset, batch_size=256, shuffle=False)
-
     # Constants.
     NB_EPOCHS = 1000
     LR = 0.001
+    BATCH_SIZE = 256
 
-    # Initialize model and optimizer
+    train_dataset, validation_dataset, test_dataset = random_split(dataset, [train_size, validation_size, test_size])
+    train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)  # Shuffle for training
+    validation_loader = DataLoader(validation_dataset, batch_size=BATCH_SIZE, shuffle=False)  # Typically no need to shuffle validation/test
+    test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False)
+
+    # Initialize model, optimizer, loss function, early stopping, and TensorBoard writer.
     model = BCModel()
     optimizer = torch.optim.Adam(model.parameters(), lr=LR)
     loss_fn = nn.MSELoss()
@@ -102,31 +102,35 @@ def main():
 
         val_loss /= len(validation_loader)
         print(f'Epoch {epoch+1}: Validation Loss: {val_loss:.6f}')
+        print('----------------------------------------')
 
-        model.eval()
-        test_loss = 0
-        with torch.no_grad():
-            for states_batch, actions_batch in test_loader:
-                pred_actions = model(states_batch)
-                test_loss += loss_fn(pred_actions, actions_batch).item()
-
-        test_loss /= len(test_loader)
-        print(f'Epoch {epoch+1}: Testing Loss: {test_loss:.6f}')
-        print('----------------------------------------')        
         writer.add_scalars('loss', {'training': train_loss,
-                                    'validation': val_loss, 
-                                    'testing': test_loss},
+                                    'validation': val_loss},
                            epoch)
 
-        # Call early stopping
+        # Call early stopping.
         early_stopping(val_loss, model)
         if early_stopping.early_stop:
             print("Early stopping triggered")
             break
 
+    # After training and early stopping have concluded,
+    # and the best model state has been reloaded,
+    # proceed with testing the model's performance on the test set.
+    model.eval()
+    test_loss = 0
+    with torch.no_grad():
+        for states_batch, actions_batch in test_loader:
+            pred_actions = model(states_batch)
+            test_loss += loss_fn(pred_actions, actions_batch).item()
+
+    test_loss /= len(test_loader)
+    print(f'Test Loss: {test_loss:.6f}')
+
     if not os.path.exists(FOLDER_SAVE_MODEL):
         os.makedirs(FOLDER_SAVE_MODEL)    
     torch.save(model.state_dict(), os.path.join(FOLDER_SAVE_MODEL, 'bc_model_pb1.pth'))
-    
+
+
 if __name__ == '__main__':
     main()
