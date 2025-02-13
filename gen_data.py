@@ -106,8 +106,7 @@ class EnergyShapingController:
 
 
 if __name__ == "__main__": 
-    N_EPISODES = 5000 # 5000 for data generation, 20 visualization
-    assert N_EPISODES >= 10 # Somehow, because of plotting, a smaller version crashes
+    N_EPISODES = 5000
     ANGLE_SWITCH_THRESHOLD_DEG = 10 # deg
     EPISODE_DONE_ANGLE_THRESHOLD_DEG = 0.1 # deg
     GRAVITY = 10.0
