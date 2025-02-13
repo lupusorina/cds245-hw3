@@ -135,6 +135,7 @@ if __name__ == "__main__":
         ctrl_type = None
         time_start_episode = time.time()
         counter = 0
+        cumreward = 0
         while not done:
             angle = np.arctan2(obs[1], obs[0])
             pos_vel = np.array([angle, obs[2]]).squeeze()
@@ -146,7 +147,8 @@ if __name__ == "__main__":
                 action = energy_controller.get_action(pos_vel)
                 ctrl_type = 'EnergyShaping'
 
-            obs ,_ ,_ ,_, _ = env.step(action.reshape(1, -1))
+            obs ,reward ,_ ,_, _ = env.step(action.reshape(1, -1))
+            cumreward += reward
 
             if abs(angle) < np.deg2rad(EPISODE_DONE_ANGLE_THRESHOLD_DEG):
                 upright_angle_buffer.append(angle)
@@ -154,8 +156,10 @@ if __name__ == "__main__":
                 done = True
 
             list_of_all_the_data.append([i,
-                                         action.squeeze(),
+                                         action,
                                          state.tolist(),
+                                         reward,
+                                         cumreward,
                                          ctrl_type,
                                          int(done)])
             state = obs.squeeze().copy() # use .copy() for arrays because of the shared memory issues
@@ -166,7 +170,7 @@ if __name__ == "__main__":
 
     print('It took total of', sum(duration_episodes), 'seconds to run', N_EPISODES, 'episodes')
 
-    col_names = ['episode', 'actions', 'states', 'ctrl_type', 'done']
+    col_names = ['episode', 'actions', 'states', 'reward', 'cumreward', 'ctrl_type', 'done']
     df = pd.DataFrame(list_of_all_the_data, columns=col_names)
 
     env.close()
