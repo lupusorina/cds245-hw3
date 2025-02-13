@@ -67,10 +67,12 @@ class PendulumEnv():
 
         self.state = np.array([newth, newthdot])
 
+        costs = angle_normalize(th) ** 2 + 0.1 * thdot**2 + 0.001 * (u**2)
+
         if self.render_mode == "human":
             self.render()
     
-        return self._get_obs(), False, False, False, {}
+        return self._get_obs(), -costs, False, False, {}
 
     def reset(self, *, seed: Optional[int] = None, options: Optional[dict] = None):
         if options is None:
