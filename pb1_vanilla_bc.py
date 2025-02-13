@@ -31,18 +31,23 @@ class BCModel(nn.Module):
 def main():
     FOLDER_DATA = 'Data/CSVs'
     FOLDER_SAVE_MODEL = 'Models'
-    NAME_FILE = 'data_5000'
+    NAME_FILE = 'data_pendulum_5000'
 
     data = pd.read_csv(os.path.join(FOLDER_DATA, NAME_FILE + '.csv'))
     
     SAVE_DATA_AS_NP = True
     if SAVE_DATA_AS_NP == True:
-        actions = data['actions'].values
         states_list = []
+        action_list = []
         for item in data['states']:
-            states_list.append(ast.literal_eval(item))        
+            states_list.append(ast.literal_eval(item))
+        for item in data['actions']:
+            action_list.append(ast.literal_eval(item))
+
         states_np = np.array(states_list)
-        actions_np = np.array(actions)
+        print(states_np)
+        actions_np = np.array(action_list)
+        print(actions_np)
         np.save(os.path.join(FOLDER_DATA, 'states_np_' + NAME_FILE), states_np)
         np.save(os.path.join(FOLDER_DATA, 'actions_np_' + NAME_FILE), actions_np)
         print('Data saved as numpy arrays')   
@@ -52,7 +57,9 @@ def main():
         print('Data loaded from numpy arrays')
 
     states_tensor = torch.tensor(states_np, dtype=torch.float32)
-    actions_tensor = torch.tensor(actions_np.reshape(-1, 1), dtype=torch.float32)
+    actions_tensor = torch.tensor(actions_np, dtype=torch.float32)
+    size_input = states_tensor.shape[1]
+    size_output = actions_tensor.shape[1]
 
     dataset = TensorDataset(states_tensor, actions_tensor)
 
@@ -72,7 +79,7 @@ def main():
     test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False)
 
     # Initialize model, optimizer, loss function, early stopping, and TensorBoard writer.
-    model = BCModel()
+    model = BCModel(size_input, size_output)
     optimizer = torch.optim.Adam(model.parameters(), lr=LR)
     loss_fn = nn.MSELoss()
     early_stopping = EarlyStopping(patience=10, verbose=False)
@@ -129,7 +136,7 @@ def main():
 
     if not os.path.exists(FOLDER_SAVE_MODEL):
         os.makedirs(FOLDER_SAVE_MODEL)    
-    torch.save(model.state_dict(), os.path.join(FOLDER_SAVE_MODEL, 'bc_model_pb1a.pth'))
+    torch.save(model.state_dict(), os.path.join(FOLDER_SAVE_MODEL, 'bc_model_pb1a_' + NAME_FILE + '.pth'))
 
 if __name__ == '__main__':
     main()
