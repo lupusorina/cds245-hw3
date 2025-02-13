@@ -63,7 +63,7 @@ ACTION_HORIZON = 1
 SEQ_STATE_SIZE = 3 * STATE_HORIZON
 SEQ_ACTION_SIZE = 1 * ACTION_HORIZON
 model = BCModel(SEQ_STATE_SIZE, SEQ_ACTION_SIZE) # Default size: 3 (state), 1 (control)
-state_dict = torch.load('Models/bc_model_pb1a.pth', weights_only=True)
+state_dict = torch.load('Models/bc_model_pb1a_data_pendulum_5000.pth', weights_only=True)
 model.load_state_dict(state_dict)
 model.eval()
 obs, _ = env.reset(options=options)
@@ -78,7 +78,7 @@ ACTION_HORIZON = 3
 SEQ_STATE_SIZE = 3 * STATE_HORIZON
 SEQ_ACTION_SIZE = 1 * ACTION_HORIZON
 model = BCModel(SEQ_STATE_SIZE, SEQ_ACTION_SIZE)
-state_dict = torch.load('Models/bc_model_pb1b.pth', weights_only=True)
+state_dict = torch.load('Models/bc_model_pb1b_data_pendulum_5000.pth', weights_only=True)
 model.load_state_dict(state_dict)
 model.eval()
 obs, _ = env.reset(options=options)
