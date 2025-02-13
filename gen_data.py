@@ -182,7 +182,8 @@ if __name__ == "__main__":
     if not os.path.exists(PLOTS_FOLDER):
         os.makedirs(PLOTS_FOLDER)
 
-    df.to_csv(f'{DATA_FOLDER}/data_{N_EPISODES}.csv', index=False)
+    FILE_NAME = 'data_pendulum_' + str(N_EPISODES) + '.csv'
+    df.to_csv(f'{DATA_FOLDER}/{FILE_NAME}', index=False)
 
     # Plot state.
     PLOT = True
@@ -192,7 +193,7 @@ if __name__ == "__main__":
 
     NB_EPISODES_TO_PLOT = 100
 
-    data = pd.read_csv(f'{DATA_FOLDER}/data_{N_EPISODES}.csv')
+    data = pd.read_csv(f'{DATA_FOLDER}/{FILE_NAME}')
     data['states'] = data['states'].apply(lambda x: ast.literal_eval(x))
     data['angle_state'] = data['states'].apply(lambda x: np.arctan2(x[1], x[0]))
     N_EPISODES = data['episode'].nunique()
