@@ -33,12 +33,11 @@ class BCModel(nn.Module):
 def main():
     FOLDER_DATA = 'Data/CSVs'
     FOLDER_SAVE_MODEL = 'Models'
-    NAME_FILE = 'data_5000'
-    # NAME_FILE = 'test_data'
+    NAME_FILE = 'data_pendulum_5000'
 
     data = pd.read_csv(os.path.join(FOLDER_DATA, NAME_FILE + '.csv'))
 
-    SAVE_DATA_AS_NP = True
+    SAVE_DATA_AS_NP = False
     HORIZON_STATE = 3
     HORIZON_ACTION = 3
     NAME_STATE_FILE = 'states_np_' + NAME_FILE + "_horizon_" + str(HORIZON_STATE) + "_action_" + \
@@ -52,13 +51,15 @@ def main():
         action_sequences = []
         for idx_episode in tqdm.tqdm(range(N_EPISODES)):
             episode_data = data[data['episode'] == idx_episode]
-            states = episode_data['states']
-            actions = episode_data['actions']
+            action_list = []
             states_list = []
-            for item in states:
+            for item in episode_data['states']:
                 states_list.append(ast.literal_eval(item))
+            for item in episode_data['actions']:
+                action_list.append(ast.literal_eval(item))
+
             states_np = np.array(states_list)
-            actions_np = np.array(actions)
+            actions_np = np.array(action_list)
 
             for i in range(HORIZON_STATE, len(states_list) - HORIZON_ACTION  + HORIZON_STATE - 1):
                 state_sequence = (states_np[i - HORIZON_STATE:i]).flatten()
@@ -160,8 +161,7 @@ def main():
 
     if not os.path.exists(FOLDER_SAVE_MODEL):
         os.makedirs(FOLDER_SAVE_MODEL)    
-    torch.save(model.state_dict(), os.path.join(FOLDER_SAVE_MODEL, 'bc_model_pb1b.pth'))
-
+    torch.save(model.state_dict(), os.path.join(FOLDER_SAVE_MODEL, 'bc_model_pb1b_' + NAME_FILE + '.pth'))
 
 if __name__ == '__main__':
     main()
