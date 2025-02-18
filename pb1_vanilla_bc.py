@@ -3,30 +3,14 @@ import ast
 
 import numpy as np
 import pandas as pd
-import time
+
 from utils import EarlyStopping
 from torch.utils.data import DataLoader, TensorDataset, random_split
 from torch.utils.tensorboard import SummaryWriter
 
 import torch
 import torch.nn as nn
-
-class BCModel(nn.Module):
-    def __init__(self, input_size=3, output_size=1):
-        super(BCModel, self).__init__()
-        self.net = nn.Sequential(
-            nn.Linear(input_size, 32),
-            nn.ReLU(),
-            nn.Linear(32, 64),
-            nn.ReLU(),
-            nn.Linear(64, 32),
-            nn.ReLU(),
-            nn.Linear(32, output_size)
-        )
-
-    def forward(self, x):
-        return self.net(x)
-
+from models import BCModel
 
 def main():
     FOLDER_DATA = 'Data/CSVs'
@@ -44,10 +28,8 @@ def main():
         for item in data['actions']:
             action_list.append(ast.literal_eval(item))
 
-        states_np = np.array(states_list)
-        print(states_np)
         actions_np = np.array(action_list)
-        print(actions_np)
+        states_np = np.array(states_list)
         np.save(os.path.join(FOLDER_DATA, 'states_np_' + NAME_FILE), states_np)
         np.save(os.path.join(FOLDER_DATA, 'actions_np_' + NAME_FILE), actions_np)
         print('Data saved as numpy arrays')   
@@ -58,8 +40,6 @@ def main():
 
     states_tensor = torch.tensor(states_np, dtype=torch.float32)
     actions_tensor = torch.tensor(actions_np, dtype=torch.float32)
-    size_input = states_tensor.shape[1]
-    size_output = actions_tensor.shape[1]
 
     dataset = TensorDataset(states_tensor, actions_tensor)
 
@@ -79,14 +59,14 @@ def main():
     test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False)
 
     # Initialize model, optimizer, loss function, early stopping, and TensorBoard writer.
-    model = BCModel(size_input, size_output)
+    model = BCModel(states_tensor.shape[1], actions_tensor.shape[1])
     optimizer = torch.optim.Adam(model.parameters(), lr=LR)
     loss_fn = nn.MSELoss()
     early_stopping = EarlyStopping(patience=10, verbose=False)
     writer = SummaryWriter()
 
     for epoch in range(NB_EPOCHS):
-        # Training phase
+        # Training phase.
         model.train()
         running_loss = 0
         for state_batch, action_batch in train_loader:
@@ -99,7 +79,7 @@ def main():
         train_loss = running_loss / len(train_loader)
         print(f"Epoch {epoch+1}, Loss: {train_loss:.6f}")
 
-        # Validation phase
+        # Validation phase.
         val_loss = 0
         model.eval()
         with torch.no_grad():
