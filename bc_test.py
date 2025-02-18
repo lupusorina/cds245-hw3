@@ -3,6 +3,7 @@ import numpy as np
 from pb1_vanilla_bc import BCModel
 from pendulum import PendulumEnv
 import matplotlib.pyplot as plt
+import gymnasium as gym
 import os
 from gen_data import EnergyShapingController, NonlinearController, LQRController
 
@@ -44,12 +45,13 @@ if not os.path.exists(FOLDER_PLOTS):
     os.makedirs(FOLDER_PLOTS)
 
 # Environment.
-env = PendulumEnv(dt=DT, g=GRAVITY) #, render_mode = 'human')
-pendulum_params = {"mass": env.m,
-                    "rod_length": env.l,
+# env = PendulumEnv(dt=DT, g=GRAVITY) #, render_mode = 'human')
+env = gym.make("Pendulum-v1", render_mode='human')
+pendulum_params = {"mass": env.unwrapped.m,
+                    "rod_length": env.unwrapped.l,
                     "gravity": GRAVITY,
                     "action_limits": (env.action_space.low, env.action_space.high),
-                    'dt': DT}
+                    'dt': env.unwrapped.dt}
 
 # Initial conditions.
 theta0 = np.pi/2
@@ -58,6 +60,7 @@ options = {'theta0': theta0,
            'theta_dot0': theta_dot0}
 
 # Test 1: Imitation Learning. STATE_HORIZON=1, ACTION_HORIZON=1.
+print('Test 1')
 STATE_HORIZON = 1
 ACTION_HORIZON = 1
 SEQ_STATE_SIZE = 3 * STATE_HORIZON
@@ -66,11 +69,11 @@ model = BCModel(SEQ_STATE_SIZE, SEQ_ACTION_SIZE) # Default size: 3 (state), 1 (c
 state_dict = torch.load('Models/bc_model_pb1a_data_pendulum_5000.pth', weights_only=True)
 model.load_state_dict(state_dict)
 model.eval()
-obs, _ = env.reset(options=options)
+obs, _ = env.reset()
 obs_list = []
 obs_list.append(obs)
 u_list_BC, angle_list_BC, ang_vel_list_BC = run_environment_NN(env, model, obs_list)
-
+print('Test 1 done')
 
 # Test 2: Imitation Learning. STATE_HORIZON=3, ACTION_HORIZON=3.
 STATE_HORIZON = 3
@@ -93,7 +96,7 @@ obs = obs.reshape(len(obs), 1)
 energy_controller = EnergyShapingController(**pendulum_params)
 lqr_controller = LQRController(**pendulum_params)
 
-ANGLE_SWITCH_THRESHOLD_DEG = 10 # deg
+ANGLE_SWITCH_THRESHOLD_DEG = 18 # deg
 action_classical_control = []
 upright_angle_buffer = []
 angle_list_classical_ctrl = []
