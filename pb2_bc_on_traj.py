@@ -13,22 +13,7 @@ import tqdm
 import torch
 import torch.nn as nn
 import matplotlib.pyplot as plt
-
-class BCModel(nn.Module):
-    def __init__(self, input_size=3, output_size=1):
-        super(BCModel, self).__init__()
-        self.net = nn.Sequential(
-            nn.Linear(input_size, 32),
-            nn.ReLU(),
-            nn.Linear(32, 64),
-            nn.ReLU(),
-            nn.Linear(64, 32),
-            nn.ReLU(),
-            nn.Linear(32, output_size)
-        )
-
-    def forward(self, x):
-        return self.net(x)
+from models import BCModel
 
 def main():
     FOLDER_DATA = 'Data/CSVs'
@@ -37,7 +22,7 @@ def main():
 
     data = pd.read_csv(os.path.join(FOLDER_DATA, NAME_FILE + '.csv'))
 
-    SAVE_DATA_AS_NP = False
+    SAVE_DATA_AS_NP = True
     HORIZON_STATE = 3
     HORIZON_ACTION = 3
     NAME_STATE_FILE = 'states_np_' + NAME_FILE + "_horizon_" + str(HORIZON_STATE) + "_action_" + \
