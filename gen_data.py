@@ -9,6 +9,7 @@ from numpy.random import seed
 import control
 from pendulum import PendulumEnv
 import time
+import gymnasium as gym
 
 seed(42)
 
@@ -107,17 +108,18 @@ class EnergyShapingController:
 
 if __name__ == "__main__": 
     N_EPISODES = 5000
-    ANGLE_SWITCH_THRESHOLD_DEG = 10 # deg
+    ANGLE_SWITCH_THRESHOLD_DEG = 18 # deg
     EPISODE_DONE_ANGLE_THRESHOLD_DEG = 0.1 # deg
     GRAVITY = 10.0
-    DT = 0.01
+    DT = 0.05
 
-    env = PendulumEnv(dt=DT, g=GRAVITY) # render_mode = 'human'
-    pendulum_params = {"mass": env.m,
-                       "rod_length": env.l,
+    # env = PendulumEnv(dt=DT, g=GRAVITY, render_mode = 'human')
+    env = gym.make("Pendulum-v1") #, render_mode = 'human')
+    pendulum_params = {"mass": env.unwrapped.m,
+                       "rod_length": env.unwrapped.l,
                        "gravity": GRAVITY,
                        "action_limits": (env.action_space.low, env.action_space.high),
-                       'dt': DT}
+                       'dt': env.unwrapped.dt}
 
     energy_controller = EnergyShapingController(**pendulum_params)
     # nonlinear_controller = NonlinearController(**pendulum_params)
@@ -147,12 +149,12 @@ if __name__ == "__main__":
                 action = energy_controller.get_action(pos_vel)
                 ctrl_type = 'EnergyShaping'
 
-            obs ,reward ,_ ,_, _ = env.step(action.reshape(1, -1))
-            cumreward += reward
+            obs ,reward ,_ ,_, _ = env.step(action)
+            cumreward = cumreward + reward
 
             if abs(angle) < np.deg2rad(EPISODE_DONE_ANGLE_THRESHOLD_DEG):
                 upright_angle_buffer.append(angle)
-            if len(upright_angle_buffer) > 40:
+            if len(upright_angle_buffer) > 20:
                 done = True
 
             list_of_all_the_data.append([i,
@@ -195,23 +197,43 @@ if __name__ == "__main__":
 
     data = pd.read_csv(f'{DATA_FOLDER}/{FILE_NAME}')
     data['states'] = data['states'].apply(lambda x: ast.literal_eval(x))
+    # data['actions'] = data['actions'].apply(lambda x: ast.literal_eval(x))
+
     data['angle_state'] = data['states'].apply(lambda x: np.arctan2(x[1], x[0]))
     N_EPISODES = data['episode'].nunique()
 
     for idx_episode in range(min(N_EPISODES, NB_EPISODES_TO_PLOT)):
-        fig, ax = plt.subplots(3, 1, sharex=True, figsize=(8, 8))
+        fig, ax = plt.subplots(5, 1, sharex=True, figsize=(8, 12))
         print(f'Episode {idx_episode}')
         episode_data = data[data['episode'] == idx_episode]
 
-        angles = episode_data['angle_state']
-        angular_vels = episode_data['states'].apply(lambda x: x[2])
-        actions = episode_data['actions']
+        angles = episode_data['angle_state'].values
+        angular_vels = episode_data['states'].apply(lambda x: x[2]).values
+        actions = episode_data['actions'].values
+        rewards = episode_data['reward'].values
+        cumrewards = episode_data['cumreward'].values
+        control_type = episode_data['ctrl_type'].values
+        time_ = np.arange(angles.shape[0])
+
+        actions_cleaned = [] # hacky way to clean the actions
+        for act in actions:
+            # extract from '[' ']'
+            act = act[1:-1]
+            actions_cleaned.append(float(act))
+
+        # for i in range(angles.shape[0]):
+        #     if control_type[i] == 'LQR':
+        #         ax[0].plot(time_[i], angles[i], '*', color='red', label=f'Episode {idx_episode}')
+        #     else:
+        #         ax[0].plot(time_[i], angles[i], '*', color='blue', label=f'Episode {idx_episode}')
 
         ax[0].plot(angles, label=f'Episode {idx_episode}')
         ax[1].plot(angular_vels, label=f'Episode {idx_episode}')
-        ax[2].plot(actions, label=f'Episode {idx_episode}')
+        ax[2].plot(actions_cleaned, label=f'Episode {idx_episode}')
+        ax[3].plot(cumrewards, label=f'Episode {idx_episode}')
+        ax[4].plot(rewards, label=f'Episode {idx_episode}')
 
-        for i in range(3):
+        for i in range(5):
             ax[i].grid()
             ax[i].legend(loc='upper right')
 
@@ -219,5 +241,9 @@ if __name__ == "__main__":
         ax[0].set_ylabel("Angle [rad]")
         ax[1].set_ylabel("Angular Velocity [rad/s]")
         ax[2].set_ylabel("Torque [Nm]")
+        ax[3].set_ylabel("Cumulative Reward")
+        ax[4].set_ylabel("Reward")
+        ax[4].set_xlabel("Time Step")
         plt.savefig(f'{PLOTS_FOLDER}/episode_{idx_episode}.png')
+
         plt.close()
