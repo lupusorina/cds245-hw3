@@ -7,28 +7,10 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from numpy.random import seed
 import control
-from pendulum import PendulumEnv
 import time
 import gymnasium as gym
 
 seed(42)
-
-class NonlinearController:
-    def __init__(self, mass, rod_length, gravity, action_limits, lambda_=10, k=1):
-        self.m = mass
-        self.l = rod_length
-        self.g = gravity
-        self.lambda_ = lambda_
-        self.k = k
-        self.action_limits = action_limits
-
-    def controller(self, angle, angle_d, angular_vel, angular_vel_d, g, l):
-        angle_err = angle - angle_d
-        angular_vel_ref = angular_vel_d + self.lambda_ * angle_err 
-        s = angular_vel - angular_vel_ref
-        u = - self.k * s - s * g  * l/2 * np.sin(angle)
-        u = np.clip(u, a_min=self.action_limits[0], a_max=self.action_limits[1])
-        return u
 
 class LQRController:
     def __init__(self,
@@ -37,18 +19,18 @@ class LQRController:
                  gravity: float,
                  dt: float,
                  action_limits=(-2.0, 2.0),
-                 Q = np.diag([20, 0.5]),
+                 Q = np.diag([50, 0.5]),
                  R = np.array([[0.2]])):
         """
         LQR Controller for the Pendulum environment.
         Parameters:
-        mass: mass of the pendulum
-        rod_length: length of the pendulum
-        gravity: gravity
-        action_limits: limits of the action space
-        dt: time step
-        Q: state cost matrix
-        R: control effort cost
+            mass: mass of the pendulum
+            rod_length: length of the pendulum
+            gravity: gravity
+            action_limits: limits of the action space
+            dt: time step
+            Q: state cost matrix
+            R: control effort cost
         """
         self.m = mass
         self.l = rod_length
@@ -56,29 +38,43 @@ class LQRController:
         self.I = self.m * (self.l ** 2) * 1/3
         self.action_limits = action_limits
         self.dt = dt
-        
+
+        # LQR matrices.
         self.Q = Q
         self.R = R
-        self.I = self.m * (self.l ** 2) * 1/3
-        self.action_limits = action_limits
 
+        # Dynamics.
         self.A = np.array([[0, 1], 
                            [3 * self.g / (self.l * 2), 0.0]])
         self.B = np.array([[0], [1 / self.I]])
-
+        # Discrete dynamics.
         self.A_d = np.eye(2) + dt * self.A
         self.B_d = dt * self.B 
         self.K = control.lqr(self.A, self.B, self.Q, self.R)[0]
 
-    def compute_control(self, state: np.ndarray, state_d: np.ndarray = np.array([0, 0])):
-        """
-        Compute the control action using the LQR feedback law.
-        """
+    def compute_control(self,
+                        state: np.ndarray,
+                        state_d: np.ndarray = np.array([0, 0])):
         u = - self.K @ (state - state_d)
         return np.clip(u, a_min=self.action_limits[0], a_max=self.action_limits[1])
 
 class EnergyShapingController:
-    def __init__(self, mass, rod_length, gravity, dt, action_limits=(-2.0, 2.0)):
+    def __init__(self,
+                 mass: float,
+                 rod_length: float,
+                 gravity: float,
+                 dt: float,
+                 action_limits: tuple = (-2.0, 2.0)):
+        """
+        Energy Shaping Controller for the Pendulum environment.
+        See https://underactuated.mit.edu/acrobot.html#section6
+        Parameters:
+            mass: mass of the pendulum
+            rod_length: length of the pendulum
+            gravity: gravity
+            action_limits: limits of the action space
+            dt: time step
+        """
         self.m = mass
         self.l = rod_length
         self.g = gravity
@@ -86,7 +82,8 @@ class EnergyShapingController:
         self.dt = dt
         self.action_limits = action_limits
 
-    def compute_total_energy(self, state):
+    def compute_total_energy(self,
+                            state: np.ndarray):
         kinetic_energy = 1/2 * self.I * (state[1] ** 2)
         potential_energy = self.m * self.g * self.l/2 * np.cos(state[0])
         E = kinetic_energy + potential_energy
@@ -96,24 +93,21 @@ class EnergyShapingController:
         E_d = self.m * self.g * self.l/2
         return E_d
 
-    def get_action(self, state):
+    def get_action(self,
+                   state: np.ndarray):
         E_d = self.compute_desired_energy()
         _, _, E = self.compute_total_energy(state)
-
         E_err = E - E_d # Energy error.
         u = - state[1] * E_err
-        action = np.clip(u, a_min=self.action_limits[0], a_max=self.action_limits[1])
-        return action
+        return np.clip(u, a_min=self.action_limits[0], a_max=self.action_limits[1])
 
 
 if __name__ == "__main__": 
     N_EPISODES = 5000
     ANGLE_SWITCH_THRESHOLD_DEG = 18 # deg
-    EPISODE_DONE_ANGLE_THRESHOLD_DEG = 0.1 # deg
+    EPISODE_DONE_ANGLE_THRESHOLD_DEG = 0.5 # deg
     GRAVITY = 10.0
-    DT = 0.05
 
-    # env = PendulumEnv(dt=DT, g=GRAVITY, render_mode = 'human')
     env = gym.make("Pendulum-v1") #, render_mode = 'human')
     pendulum_params = {"mass": env.unwrapped.m,
                        "rod_length": env.unwrapped.l,
@@ -121,13 +115,12 @@ if __name__ == "__main__":
                        "action_limits": (env.action_space.low, env.action_space.high),
                        'dt': env.unwrapped.dt}
 
+    # Set up controllers.
     energy_controller = EnergyShapingController(**pendulum_params)
-    # nonlinear_controller = NonlinearController(**pendulum_params)
     lqr_controller = LQRController(**pendulum_params)
 
     duration_episodes = []
-    steps_per_episodes = []
-    list_of_all_the_data = []
+    data_list = []
     for i in range(N_EPISODES):
         print(f'Episode {i}')
         obs, _ = env.reset(options={'x_init': 1.0, 'y_init': 8.0})
@@ -150,33 +143,32 @@ if __name__ == "__main__":
                 ctrl_type = 'EnergyShaping'
 
             obs ,reward ,_ ,_, _ = env.step(action)
-            cumreward = cumreward + reward
+            cumreward += reward
 
             if abs(angle) < np.deg2rad(EPISODE_DONE_ANGLE_THRESHOLD_DEG):
                 upright_angle_buffer.append(angle)
-            if len(upright_angle_buffer) > 20:
+            if len(upright_angle_buffer) > 10:
                 done = True
 
-            list_of_all_the_data.append([i,
-                                         action,
-                                         state.tolist(),
-                                         reward,
-                                         cumreward,
-                                         ctrl_type,
-                                         int(done)])
+            data_list.append([i,
+                            action,
+                            state.tolist(),
+                            reward,
+                            cumreward,
+                            ctrl_type,
+                            int(done)])
             state = obs.squeeze().copy() # use .copy() for arrays because of the shared memory issues
             counter += 1
 
         time_end_episode = time.time()
         duration_episodes.append(time_end_episode - time_start_episode)
+    env.close()
 
     print('It took total of', sum(duration_episodes), 'seconds to run', N_EPISODES, 'episodes')
 
+    print("Saving data...")
     col_names = ['episode', 'actions', 'states', 'reward', 'cumreward', 'ctrl_type', 'done']
-    df = pd.DataFrame(list_of_all_the_data, columns=col_names)
-
-    env.close()
-
+    df = pd.DataFrame(data_list, columns=col_names)
     DATA_FOLDER = 'Data/CSVs'
     if not os.path.exists(DATA_FOLDER):
         os.makedirs(DATA_FOLDER)
@@ -186,13 +178,13 @@ if __name__ == "__main__":
 
     FILE_NAME = 'data_pendulum_' + str(N_EPISODES) + '.csv'
     df.to_csv(f'{DATA_FOLDER}/{FILE_NAME}', index=False)
+    print("Data saved.")
 
     # Plot state.
     PLOT = True
-    print('Plotting...')
     if PLOT == False:
         exit()
-
+    print('Plotting...')
     NB_EPISODES_TO_PLOT = 100
 
     data = pd.read_csv(f'{DATA_FOLDER}/{FILE_NAME}')
@@ -220,12 +212,6 @@ if __name__ == "__main__":
             # extract from '[' ']'
             act = act[1:-1]
             actions_cleaned.append(float(act))
-
-        # for i in range(angles.shape[0]):
-        #     if control_type[i] == 'LQR':
-        #         ax[0].plot(time_[i], angles[i], '*', color='red', label=f'Episode {idx_episode}')
-        #     else:
-        #         ax[0].plot(time_[i], angles[i], '*', color='blue', label=f'Episode {idx_episode}')
 
         ax[0].plot(angles, label=f'Episode {idx_episode}')
         ax[1].plot(angular_vels, label=f'Episode {idx_episode}')
