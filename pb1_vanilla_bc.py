@@ -19,7 +19,7 @@ def main():
 
     data = pd.read_csv(os.path.join(FOLDER_DATA, NAME_FILE + '.csv'))
     
-    SAVE_DATA_AS_NP = True
+    SAVE_DATA_AS_NP = True # You need to set this true only once.
     if SAVE_DATA_AS_NP == True:
         states_list = []
         action_list = []
