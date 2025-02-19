@@ -96,7 +96,7 @@ def main():
                            epoch)
 
         # Call early stopping.
-        early_stopping(val_loss, model)
+        early_stopping(val_loss)
         if early_stopping.early_stop:
             print("Early stopping triggered")
             break
