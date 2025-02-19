@@ -1,13 +1,14 @@
 import torch
 import numpy as np
-from pb1_vanilla_bc import BCModel
-from pendulum import PendulumEnv
+from models import BCModel
 import matplotlib.pyplot as plt
 import gymnasium as gym
 import os
-from gen_data import EnergyShapingController, NonlinearController, LQRController
+from gen_data import EnergyShapingController, LQRController
 
-def run_environment_NN(env, model, obs_list):
+def run_environment_NN(env: gym.Env,
+                       model: BCModel,
+                       obs_list: list):
     u_list = []
     done = False
     obs_tensor = torch.tensor(np.array(obs_list).flatten(), dtype=torch.float32)
@@ -37,7 +38,6 @@ def run_environment_NN(env, model, obs_list):
 
 # Constants.
 GRAVITY = 10.0
-DT = 0.01
 EPISODE_DONE_ANGLE_THRESHOLD_DEG = 0.25 # deg
 FOLDER_PLOTS = 'Plots'
 UPRIGHT_BUFFER_LEN = 40
@@ -45,19 +45,12 @@ if not os.path.exists(FOLDER_PLOTS):
     os.makedirs(FOLDER_PLOTS)
 
 # Environment.
-# env = PendulumEnv(dt=DT, g=GRAVITY) #, render_mode = 'human')
 env = gym.make("Pendulum-v1", render_mode='human')
 pendulum_params = {"mass": env.unwrapped.m,
                     "rod_length": env.unwrapped.l,
                     "gravity": GRAVITY,
                     "action_limits": (env.action_space.low, env.action_space.high),
                     'dt': env.unwrapped.dt}
-
-# Initial conditions.
-theta0 = np.pi/2
-theta_dot0 = 2.0
-options = {'theta0': theta0,
-           'theta_dot0': theta_dot0}
 
 # Test 1: Imitation Learning. STATE_HORIZON=1, ACTION_HORIZON=1.
 print('Test 1')
@@ -84,14 +77,14 @@ model = BCModel(SEQ_STATE_SIZE, SEQ_ACTION_SIZE)
 state_dict = torch.load('Models/bc_model_pb1b_data_pendulum_5000.pth', weights_only=True)
 model.load_state_dict(state_dict)
 model.eval()
-obs, _ = env.reset(options=options)
+obs, _ = env.reset()
 obs_list = []
 for i in range(STATE_HORIZON):
     obs_list.append(obs)
 u_list_BC_traj, angle_list_BC_traj, ang_vel_list_BC_traj = run_environment_NN(env, model, obs_list)
 
 # Test 3: Classical controller.
-obs, _ = env.reset(options=options)
+obs, _ = env.reset()
 obs = obs.reshape(len(obs), 1)
 energy_controller = EnergyShapingController(**pendulum_params)
 lqr_controller = LQRController(**pendulum_params)
